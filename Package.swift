@@ -13,9 +13,15 @@ let package = Package(
             targets: ["Networking"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-http-types.git", exact: "1.4.0")
+    ],
     targets: [
         .target(
-            name: "Networking"
+            name: "Networking",
+            dependencies: [
+                .product(name: "HTTPTypes", package: "swift-http-types")
+            ]
         ),
         .testTarget(
             name: "NetworkingTests",
