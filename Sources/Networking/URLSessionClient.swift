@@ -8,10 +8,32 @@
 import Foundation
 import Combine
 
-public class URLSessionClient {
-    private let urlSession: URLSession
+public protocol URLSessionClientProtocol {
+    func fetchData(request: URLRequest) async -> Result<Data, URLSessionClient.FetchError>
     
-    public init(urlSession: URLSession = .shared) {
+    func fetchDataPublisher(
+        request: URLRequest,
+        resultAfterCancelledHandler: ((Result<Data, URLSessionClient.FetchError>) -> Void)?
+    ) -> AnyPublisher<Data, URLSessionClient.FetchError>
+}
+
+extension URLSessionClientProtocol {
+    func fetchData(url: URL) async -> Result<Data, URLSessionClient.FetchError> {
+        return await fetchData(request: URLRequest(url: url))
+    }
+    
+    func fetchDataPublisher(
+        url: URL,
+        resultAfterCancelledHandler: ((Result<Data, URLSessionClient.FetchError>) -> Void)?
+    ) -> AnyPublisher<Data, URLSessionClient.FetchError> {
+        return fetchDataPublisher(request: URLRequest(url: url), resultAfterCancelledHandler: resultAfterCancelledHandler)
+    }
+}
+
+public class URLSessionClient: URLSessionClientProtocol {
+    private let urlSession: URLSessionProtocol
+    
+    public init(urlSession: URLSessionProtocol = URLSession.shared) {
         self.urlSession = urlSession
     }
     
@@ -25,7 +47,7 @@ public class URLSessionClient {
             case 200..<300:
                 return .success(data)
             default:
-                return .failure(.requestFailure(httpResponse.statusCode, data))
+                return .failure(.requestFailure(statusCode: httpResponse.statusCode, data))
             }
         } catch {
             return .failure(.urlSessionError(error))
@@ -63,11 +85,9 @@ public class URLSessionClient {
 
 // MARK: - Fetch Error
 extension URLSessionClient {
-    public typealias StatusCode = Int
-    
     public enum FetchError: Error {
         case notHTTPResponse(URLResponse)
-        case requestFailure(StatusCode, Data)
+        case requestFailure(statusCode: Int, Data)
         case urlSessionError(Error)
         case selfBeingReleased
     }
