@@ -26,7 +26,7 @@ extension HTTPEndpointProtocol {
             throw URLError(.badURL)
         }
         var request = URLRequest(url: url)
-        request.httpMethod = method.requestMethod.rawValue
+        request.httpMethod = method.rawValue
         headers.map(\.entry).forEach {
             request.setValue($0.value, forHTTPHeaderField: $0.field.rawName)
         }
