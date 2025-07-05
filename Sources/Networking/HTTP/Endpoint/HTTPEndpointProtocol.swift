@@ -8,6 +8,11 @@
 import Foundation
 import HTTPTypes
 
+public enum HTTPEndpointMakeRequestError: Error {
+    case invalidURL(String)
+    case jsonEncodingFailure(Error)
+}
+
 public protocol HTTPEndpointProtocol {
     associatedtype Environment
     
@@ -17,14 +22,14 @@ public protocol HTTPEndpointProtocol {
     var headers: [HTTPHeader] { get }
     var parameter: HTTPParameter? { get }
     
-    func makeRequest(for environment: Environment) throws -> URLRequest
+    func makeRequest(for environment: Environment) -> Result<URLRequest, HTTPEndpointMakeRequestError>
 }
 
 extension HTTPEndpointProtocol {
-    public func makeRequest(for environment: Environment) throws -> URLRequest {
-        guard let url = URL(string: domain(for: environment) + path) else {
-            throw URLError(.badURL)
-        }
+    public func makeRequest(for environment: Environment) -> Result<URLRequest, HTTPEndpointMakeRequestError> {
+        let urlString = domain(for: environment) + path
+        guard let url = URL(string: urlString) else { return .failure(.invalidURL(urlString)) }
+        
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         headers.map(\.entry).forEach {
@@ -40,21 +45,21 @@ extension HTTPEndpointProtocol {
                 case .data(let data):
                     request.httpBody = data
                 case .json(let encodable):
-                    request.httpBody = try JSONEncoder().encode(encodable)
+                    do {
+                        request.httpBody = try JSONEncoder().encode(encodable)
+                    } catch {
+                        return .failure(.jsonEncodingFailure(error))
+                    }
                 }
             }
         }
-        return request
+        return .success(request)
     }
 }
 
 // MARK: - Void Environment
 extension HTTPEndpointProtocol where Environment == Void {
-    public func domain() -> String {
-        return domain(for: ())
-    }
-    
-    public func makeRequest() throws -> URLRequest {
-        return try makeRequest(for: ())
+    public func makeRequest() -> Result<URLRequest, HTTPEndpointMakeRequestError> {
+        return makeRequest(for: ())
     }
 }
