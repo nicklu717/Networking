@@ -22,16 +22,21 @@ enum MockAPIEndpoint {
 }
 
 extension MockAPIEndpoint: HTTPEndpointProtocol {
-    enum Environment {
+    enum Environment: CaseIterable {
         case staging, production
     }
     
     func domain(for environment: Environment) -> String {
-        switch environment {
-        case .staging:
-            return "https://staging.example.com"
-        case .production:
-            return "https://api.example.com"
+        switch self {
+        case .invalidURL:
+            return "https://invalid domain.example.com"
+        default:
+            switch environment {
+            case .staging:
+                return "https://staging.example.com"
+            case .production:
+                return "https://api.example.com"
+            }
         }
     }
     
