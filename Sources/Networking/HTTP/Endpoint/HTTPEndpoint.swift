@@ -1,5 +1,5 @@
 //
-//  HTTPEndpointProtocol.swift
+//  HTTPEndpoint.swift
 //  Networking
 //
 //  Created by 陸瑋恩 on 2025/6/22.
@@ -8,26 +8,29 @@
 import Foundation
 import HTTPTypes
 
-public enum HTTPEndpointMakeRequestError: Error {
-    case invalidURL(String)
-    case jsonEncodingFailure(Error)
-}
-
-public protocol HTTPEndpointProtocol {
-    associatedtype Environment
+open class HTTPEndpoint<Environment> {
+    let domain: (Environment) -> String
+    let path: String
+    let method: HTTPMethod
+    let headers: [HTTPHeader]
+    let parameter: HTTPParameter?
     
-    func domain(for environment: Environment) -> String
-    var path: String { get }
-    var method: HTTPMethod { get }
-    var headers: [HTTPHeader] { get }
-    var parameter: HTTPParameter? { get }
+    public init(
+        domain: @escaping (Environment) -> String,
+        path: String,
+        method: HTTPMethod,
+        headers: [HTTPHeader],
+        parameter: HTTPParameter?
+    ) {
+        self.domain = domain
+        self.path = path
+        self.method = method
+        self.headers = headers
+        self.parameter = parameter
+    }
     
-    func makeRequest(for environment: Environment) -> Result<URLRequest, HTTPEndpointMakeRequestError>
-}
-
-extension HTTPEndpointProtocol {
-    public func makeRequest(for environment: Environment) -> Result<URLRequest, HTTPEndpointMakeRequestError> {
-        let urlString = domain(for: environment) + path
+    open func makeRequest(for environment: Environment) -> Result<URLRequest, MakeRequestError> {
+        let urlString = domain(environment) + path
         guard let url = URL(string: urlString) else { return .failure(.invalidURL(urlString)) }
         
         var request = URLRequest(url: url)
@@ -57,9 +60,17 @@ extension HTTPEndpointProtocol {
     }
 }
 
+// MARK: - Make Request Error
+extension HTTPEndpoint {
+    public enum MakeRequestError: Error {
+        case invalidURL(String)
+        case jsonEncodingFailure(Error)
+    }
+}
+
 // MARK: - Void Environment
-extension HTTPEndpointProtocol where Environment == Void {
-    public func makeRequest() -> Result<URLRequest, HTTPEndpointMakeRequestError> {
+extension HTTPEndpoint where Environment == Void {
+    public func makeRequest() -> Result<URLRequest, MakeRequestError> {
         return makeRequest(for: ())
     }
 }

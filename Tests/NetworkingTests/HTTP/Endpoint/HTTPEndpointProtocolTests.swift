@@ -17,19 +17,36 @@ struct HTTPEndpointProtocolTests {
     @Suite
     struct MakeRequestTests {
         
-        @Test(arguments: product(
-            Array<MockAPIEndpoint>([
-                .plain,
-                .plainWithHeaderValue(accessToken: "mock_access_token"),
-                .urlQueries(["product_id": "12345"]),
-                .bodyWithData("mock_data".data(using: .utf8)!),
-                .bodyWithEncodable(["product_id": "12345"]),
-            ]),
-            MockAPIEndpoint.Environment.allCases
-        ))
-        func success(endpoint: MockAPIEndpoint, environment: MockAPIEndpoint.Environment) throws {
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func successWithPlain(environment: MockAPIEnvironment) throws {
+            try success(endpoint: .plain, environment: environment)
+        }
+        
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func successWithPlainHeader(environment: MockAPIEnvironment) throws {
+            try success(endpoint: .plainWithHeaderValue(accessToken: "mock_access_token"), environment: environment)
+        }
+        
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func successWithURLQueries(environment: MockAPIEnvironment) throws {
+            try success(endpoint: .url(queries: ["product_id": "12345"]), environment: environment)
+        }
+        
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func successWithBodyData(environment: MockAPIEnvironment) throws {
+            let data = "mock_data".data(using: .utf8)!
+            try success(endpoint: .body(data: data), environment: environment)
+        }
+        
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func successWithBodyEncodable(environment: MockAPIEnvironment) throws {
+            let encodable = ["product_id": "12345"]
+            try success(endpoint: .body(encodable: encodable), environment: environment)
+        }
+        
+        private func success(endpoint: MockAPIEndpoint, environment: MockAPIEnvironment) throws {
             var successRequest: URLRequest?
-            var failureError: HTTPEndpointMakeRequestError?
+            var failureError: MockAPIEndpoint.MakeRequestError?
             
             switch endpoint.makeRequest(for: environment) {
             case .success(let request):
@@ -45,7 +62,7 @@ struct HTTPEndpointProtocolTests {
                 guard !queries.isEmpty else { return }
                 queryString = "?\(queries.map { "\($0)=\($1)" }.joined(separator: "&"))"
             }
-            #expect(request.url?.absoluteString == endpoint.domain(for: environment) + endpoint.path + queryString)
+            #expect(request.url?.absoluteString == endpoint.domain(environment) + endpoint.path + queryString)
             #expect(request.httpMethod == endpoint.method.rawValue)
             #expect(request.allHTTPHeaderFields?.count == endpoint.headers.count)
             endpoint.headers.map(\.entry).forEach {
@@ -69,12 +86,12 @@ struct HTTPEndpointProtocolTests {
             #expect(failureError == nil)
         }
         
-        @Test(arguments: MockAPIEndpoint.Environment.allCases)
-        func invalidURL(environment: MockAPIEndpoint.Environment) {
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func invalidURL(environment: MockAPIEnvironment) {
             let endpoint: MockAPIEndpoint = .invalidURL
             var successRequest: URLRequest?
-            var invalidURLError: HTTPEndpointMakeRequestError?
-            var otherFailureError: HTTPEndpointMakeRequestError?
+            var invalidURLError: MockAPIEndpoint.MakeRequestError?
+            var otherFailureError: MockAPIEndpoint.MakeRequestError?
             
             switch endpoint.makeRequest(for: environment) {
             case .success(let request):
@@ -93,12 +110,12 @@ struct HTTPEndpointProtocolTests {
             #expect(otherFailureError == nil)
         }
         
-        @Test(arguments: MockAPIEndpoint.Environment.allCases)
-        func jsonEncodingFailure(environment: MockAPIEndpoint.Environment) {
-            let endpoint: MockAPIEndpoint = .jsonEncodingFailure(InvalidEncodable())
+        @Test(arguments: MockAPIEnvironment.allCases)
+        func jsonEncodingFailure(environment: MockAPIEnvironment) {
+            let endpoint: MockAPIEndpoint = .jsonEncodingFailure(encodable: InvalidEncodable())
             var successRequest: URLRequest?
-            var jsonEncodingFailureError: HTTPEndpointMakeRequestError?
-            var otherFailureError: HTTPEndpointMakeRequestError?
+            var jsonEncodingFailureError: MockAPIEndpoint.MakeRequestError?
+            var otherFailureError: MockAPIEndpoint.MakeRequestError?
             
             switch endpoint.makeRequest(for: environment) {
             case .success(let request):
